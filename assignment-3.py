@@ -16,8 +16,7 @@ import sklearn.metrics as skmet
 
 import matplotlib.pyplot as plt
 import cluster_tools as ct
-from datetime import timedelta, datetime
-import sys
+
 
 def PlotScatterGraph(x, y, df, clusters):
     """
@@ -120,7 +119,6 @@ df_co2_t = TransposeDataFrame(df_co2)
 # basic statistics properties
 print(df_co2_t.describe())
 print()
-# print(df_co2_t[df_co2_t.eq(0)].to_csv('ddd.csv'))
 
 top_10 = df_co2_t.sum(axis=0).nlargest(10)
 
@@ -128,14 +126,14 @@ top_10 = df_co2_t.sum(axis=0).nlargest(10)
 df_co2_t = df_co2_t.loc[:, top_10.index]
 # df_co2_t = df_co2_t.iloc[ : , 10 : 20]
 
-# # print(df_co2_t)
-# ct.map_corr(df_co2_t, 9)
+# print(df_co2_t)
+ct.map_corr(df_co2_t, 9)
 
-# # # scatter plot
-# pd.plotting.scatter_matrix(df_co2_t, figsize=(9.0, 9.0))
-# # helps to avoid overlap of labels.
-# plt.tight_layout()
-# plt.show()
+# # scatter plot
+pd.plotting.scatter_matrix(df_co2_t, figsize=(9.0, 9.0))
+# helps to avoid overlap of labels.
+plt.tight_layout()
+plt.show()
 
 # extract columns for normalization 
 # use copy method to prevent changes in original dataframe
@@ -199,7 +197,7 @@ df_pop = pd.read_csv('API_SP.POP.GROW_DS2_en_csv_v2_5455041.csv', skiprows=4)
 
 df_pop_t = TransposeDataFrame(df_pop)
 
-print(df_pop_t['United States'])
+
 popt, pcorr = opt.curve_fit(exp_growth, df_pop_t.index, 
                             df_pop_t["United States"])
 
@@ -236,10 +234,13 @@ print("Fit parameter", popt)
       
 df_pop_t["pop_logistics"] = logistics(df_pop_t.index, *popt)
 
+# plot the line graph
 plt.figure()
 plt.title("logistics function")
-plt.plot(df_pop_t.index, df_pop_t["United States"], label="data")
+plt.plot(df_pop_t.index, df_pop_t["United States"], label="Population Growth")
 plt.plot(df_pop_t.index, df_pop_t["pop_logistics"], label="fit")
+plt.xlabel('Year')
+plt.ylabel('Population Growth')
 plt.legend()
 plt.show()
 
@@ -257,7 +258,6 @@ popt, pcorr = opt.curve_fit(logistics, df_pop_t.index, df_pop_t["United States"]
 
 # extract variances and calculate sigmas
 sigmas = np.sqrt(np.diag(pcorr))
-
 df_pop_t["pop_logistics"] = logistics(df_pop_t.index, *popt)
 
 # call function to calculate upper and lower limits with extrapolation
@@ -265,14 +265,18 @@ df_pop_t["pop_logistics"] = logistics(df_pop_t.index, *popt)
 years = np.arange(1961, 2030)
 lower, upper = err.err_ranges(years, logistics, popt, sigmas)
 
+# plot the line graph
 plt.figure()
 plt.title("logistics function")
-plt.plot(df_pop_t.index, df_pop_t["United States"], label="data")
+plt.plot(df_pop_t.index, df_pop_t["United States"], label="Population Growth")
 plt.plot(df_pop_t.index, df_pop_t["pop_logistics"], label="fit")
+plt.xlabel('Year')
+plt.ylabel('Population Growth')
+
 # plot error ranges with transparency
 plt.fill_between(years, lower, upper, alpha=0.5)
 
-plt.legend(loc="upper left")
+plt.legend(loc="upper right")
 plt.show()
 
 

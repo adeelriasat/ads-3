@@ -19,7 +19,7 @@ def map_corr(df, size=6):
     corr = df.corr()
     plt.figure(figsize=(size, size))
     # fig, ax = plt.subplots()
-    plt.matshow(corr, cmap='coolwarm', location="bottom")
+    plt.matshow(corr, cmap='coolwarm')
     # setting ticks to column names
     plt.xticks(range(len(corr.columns)), corr.columns, rotation=90)
     plt.yticks(range(len(corr.columns)), corr.columns)

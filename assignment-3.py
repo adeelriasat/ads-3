@@ -17,6 +17,7 @@ import sklearn.metrics as skmet
 import matplotlib.pyplot as plt
 import cluster_tools as ct
 from datetime import timedelta, datetime
+import sys
 
 def PlotScatterGraph(x, y, df, clusters):
     """
@@ -90,6 +91,23 @@ def TransposeDataFrame(df):
     df_t.index = pd.to_numeric(df_t.index)
 
     return df_t
+
+def exp_growth(t, scale, growth):
+    """ Computes exponential function with scale and growth as free parameters
+    """
+    
+    f = scale * np.exp(growth * (t-1950)) 
+    
+    return f
+
+
+def logistics(t, a, k, t0):
+    """ Computes logistics function with scale and incr as free parameters
+    """
+    
+    f = a / (1.0 + np.exp(-k * (t - t0)))
+    
+    return f
 
 
 
@@ -169,40 +187,92 @@ plt.ylabel("Brunei Darussalam")
 plt.title("CO2 emissions (metric tons per capita) For 3 clusters")
 plt.show()
 
-
-# Load data
-df = pd.read_csv('co2_emissions.csv')
-df['year'] = pd.to_datetime(df['year'], format='%Y')
-
+# In[2]:
 # Define model function
-def poly_model(x, a, b, c):
-    return a*x**2 + b*x + c
 
 # Fit the model
-popt, pcov = opt.curve_fit(poly_model, df.index.values, df['value'])
+# popt, pcov = opt.curve_fit(poly_model, df_co2_t.index.values, df_co2_t['Canada'])
 
-# Define prediction function
-def predict(x):
-    return poly_model(x, *popt)
 
-# Get prediction range
-n_years = 20
-start_date = df['year'].iloc[-1]
-end_date = start_date + timedelta(days=365*n_years)
-idx = pd.date_range(start=start_date, end=end_date, freq='AS')
-pred_range = np.arange(len(df.index), len(df.index) + len(idx))
 
-# Get predictions and error bounds
-y_pred = predict(pred_range)
-sigma = np.sqrt(np.diag(pcov))
-y_upper = err.err_ranges(y_pred, sigma, 0.95)[0]
-y_lower = err.err_ranges(y_pred, sigma, 0.95)[1]
+df_pop = pd.read_csv('API_SP.POP.GROW_DS2_en_csv_v2_5455041.csv', skiprows=4)
 
-# Plot the data and prediction
-plt.plot(df['year'], df['value'], 'o', label='Data')
-plt.plot(idx, y_pred, '-', label='Prediction')
-plt.fill_between(idx, y_lower, y_upper, alpha=0.3, label='95% Confidence Interval')
-plt.xlabel('Year')
-plt.ylabel('CO2 Emissions (metric tons per capita)')
+df_pop_t = TransposeDataFrame(df_pop)
+
+print(df_pop_t['United States'])
+popt, pcorr = opt.curve_fit(exp_growth, df_pop_t.index, 
+                            df_pop_t["United States"])
+
+
+print("Fit parameter", popt)
+df_pop_t["pop_exp"] = exp_growth(df_pop_t.index, *popt)
+plt.figure()
+plt.plot(df_pop_t.index, df_pop_t["United States"], label="data")
+plt.plot(df_pop_t.index, df_pop_t["pop_exp"], label="fit")
+
+plt.legend()
+plt.title("first fit attempt")
+plt.show()
+print()
+
+
+
+
+popt = [0.950220048994522, 0.03]
+df_pop_t["pop_exp"] = exp_growth(df_pop_t.index, *popt)
+plt.figure()
+plt.plot(df_pop_t.index, df_pop_t["United States"], label="data")
+plt.plot(df_pop_t.index, df_pop_t["pop_exp"], label="fit")
+
+plt.legend()
+plt.title("With Initial Guess")
+plt.show()
+
+
+# calculate for population growth in 1976
+popt, pcorr = opt.curve_fit(logistics, df_pop_t.index, df_pop_t["United States"], 
+                            p0=(0.950220048994522, 0.02, 1976.0))
+print("Fit parameter", popt)
+      
+df_pop_t["pop_logistics"] = logistics(df_pop_t.index, *popt)
+
+plt.figure()
+plt.title("logistics function")
+plt.plot(df_pop_t.index, df_pop_t["United States"], label="data")
+plt.plot(df_pop_t.index, df_pop_t["pop_logistics"], label="fit")
 plt.legend()
 plt.show()
+
+print("Population Growth in")
+print("2030:", logistics(2030, *popt) )
+print("2040:", logistics(2040, *popt) )
+print("2050:", logistics(2050, *popt) )
+
+
+# In[3]
+# get error ranges
+
+popt, pcorr = opt.curve_fit(logistics, df_pop_t.index, df_pop_t["United States"], 
+                            p0=(0.950220048994522, 0.03, 1976.0))
+
+# extract variances and calculate sigmas
+sigmas = np.sqrt(np.diag(pcorr))
+
+df_pop_t["pop_logistics"] = logistics(df_pop_t.index, *popt)
+
+# call function to calculate upper and lower limits with extrapolation
+# create extended year range
+years = np.arange(1961, 2030)
+lower, upper = err.err_ranges(years, logistics, popt, sigmas)
+
+plt.figure()
+plt.title("logistics function")
+plt.plot(df_pop_t.index, df_pop_t["United States"], label="data")
+plt.plot(df_pop_t.index, df_pop_t["pop_logistics"], label="fit")
+# plot error ranges with transparency
+plt.fill_between(years, lower, upper, alpha=0.5)
+
+plt.legend(loc="upper left")
+plt.show()
+
+
